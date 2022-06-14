@@ -1,0 +1,11 @@
+.login-title {
+  background-color: seagreen;
+  color: red;
+  font-size: 200px;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+}
+
+/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInNyYy9jc3MvbG9naW4uY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsMEJBQTBCO0VBQzFCLFVBQVU7RUFDVixnQkFBZ0I7RUFDaEIseUJBQWlCO0tBQWpCLHNCQUFpQjtNQUFqQixxQkFBaUI7VUFBakIsaUJBQWlCO0FBQ25CIiwiZmlsZSI6InJldC5jc3MiLCJzb3VyY2VzQ29udGVudCI6WyIubG9naW4tdGl0bGUge1xuICBiYWNrZ3JvdW5kLWNvbG9yOiBzZWFncmVlbjtcbiAgY29sb3I6IHJlZDtcbiAgZm9udC1zaXplOiAyMDBweDtcbiAgdXNlci1zZWxlY3Q6IG5vbmU7XG59XG4iXX0= */
