@@ -379,3 +379,255 @@ use: ['style-loader', 'css-loader', 'postcss-loader', 'less-loader' ]
 
 
 
+## 8、importLoaders
+
+在css中，可以使用`@import`操作符来导入其他css文件的样式内容，这个import操作符是可以被`css-loader`解析的，但是需要注意的是，分析一下这个`import`执行的过程：
+
+- 使用`postcss-loader`进行了适配转译，而`postcss-loader`并不会去处理`import`的内容
+- 然后`css-loader`解析`import`导入了其他css文件的样式内容
+
+导入的css样式其实并没有进行过`postcss-loader`的转译适配，所以需要让`css-loader`在处理`import`的内容时，进行一下`postcss-loader`的转译适配。在`module`中进行配置：
+
+```js
+module: {
+	rules: [
+		{
+			test: /\.css$/,
+			use: [
+				'style-loader', 
+				{
+					loader: 'css-loader',
+					options: {
+						importLoaders: 1
+					}
+				}, 
+				'postcss-loader'
+			]
+		}
+	]
+}
+```
+
+在`css-loader`配置项的`options`中配置`importLoaders: 1`就可以将`import`的文件先进行上一级的解析。
+
+## 9、file-loader
+
+如果在页面中引入了图片，那么webpack也是不能直接解析的，需要配置解析图片的加载器，这里可以使用`file-loader`加载器。`file-loader`加载器会将图片打包到输出目录下，然后将原位置替换为相应的路径解析实现图片的加载。
+
+安装file-loader：
+
+```shell
+npm install file-loader -d
+```
+
+webpack.config.js中配置：
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	use: [{
+		loader: 'file-loader',
+		options: {
+			esModule: false
+		}
+	}]
+}
+```
+
+注意这里的`options`中，配置了`esModule: false`。这是因为如果我们不配置该选项，在js中导入图片文件，会被默认解析为es模块，也就是一个对象，而不是对应的文件路径，该模块的`default`属性才是对应的文件路径。配置了该项之后，就会解析为一个路径，直接可以使用。例如：
+
+```js
+const oImg = document.createElement('img')
+// 如果没有配置esModule: false
+oImg.src = require('../img/logo.png').default
+// 配置了esModule: false
+oImg.src = require('../img/logo.png')
+```
+
+当然我们也可以使用`import`的方式，就不用考虑`esModule`的配置
+
+```js
+import img from '../img/logo.png'
+
+const oImg = document.createElement('img')
+oImg.src = img
+```
+
+如果在css文件中使用了`url()`的方式，`css-loader`是会解析图片文件的，但是同样存在之前的问题，就是解析默认的是es模块对象，而在css中不能使用`.default`来访问对象的属性，所以需要在`css-loader`中配置`options`，将`esModule`配置为`false`。
+
+```js
+{
+    test: /\.css$/,
+	use: [
+		'style-loader', 
+		{
+			loader: 'css-loader',
+			options: {
+				importLoaders: 1,
+				esModule: false
+			}
+		}, 
+		'postcss-loader'
+	]
+}
+```
+
+在上面使用`file-loader`解析图片文件后，可以发现输出目录中多出了一些hash值编码作为文件名的图片文件。这就是`file-loader`加载器打包后的图片文件，我们可以配置打包后的文件设置输出的目录以及输出的名称：
+
+**输出的名称**
+
+可以给`file-loader`的`options`中添加`name`属性配置输出的文件名，`name`属性可以使用占位符的方式配置：
+
+- `[ext]`：扩展名
+- `[name]`：文件名
+- `[hash]`：文件内容
+- `[contentHash]`：类似hash
+- `[hash:<length>]`：可以限制hash的长度
+
+例如：
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	use: [{
+		loader: 'file-loader',
+		options: {
+			esModule: false,
+			name: '[name].[hash:6].[ext]'
+		}
+	}]
+}
+```
+
+**输出的位置**
+
+可以给`file-loader`的`options`中添加`outputPath`属性配置输出的位置：
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	use: [{
+		loader: 'file-loader',
+		options: {
+			esModule: false,
+			name: '[name].[hash:6].[ext]',
+			outputPath: 'img'
+		}
+	}]
+}
+```
+
+当然可以简化这个过程，直接在`name`前添加`img/`就可以实现输出文件位置的配置：
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	use: [{
+		loader: 'file-loader',
+		options: {
+			esModule: false,
+			name: 'img/[name].[hash:6].[ext]'
+		}
+	}]
+}
+```
+
+
+
+## 10、url-loader
+
+url-loader也可以被用来解析图片文件，与file-loader不同的地方是，url-loader默认将图片解析为base64 uri的二进制形式直接放在js代码中。
+
+直接放在js中的好处是，可以减少请求的次数，但是当很大的图片文件在main.js文件中会导致首次的请求加载非常的慢。
+
+当然进行一些配置后，可以允许某些小于指定大小的文件解析为base64的形式，而大于指定大小的同file-loader一样打包生成文件输出。这样就可以很好的平衡优缺点。
+
+安装url-loader：
+
+```shell
+npm install url-loader -d
+```
+
+配置url-loader：
+
+url-loader如果不添加options配置项，就会默认把所有的图片文件都解析为base64的形式，可以在options中配置limit来实现小于指定大小的解析为base64，大于指定大小的打包输出图片文件。
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	use: [{
+		loader: 'url-loader',
+		options: {
+			esModule: false,
+			name: 'img/[name].[hash:6].[ext]',
+			limit: 100 * 1024
+		}
+	}]
+}
+```
+
+## 11、asset
+
+webpack5可以使用 **资源模块类型**（assetmodule type），替代file-loader等
+
+> 资源模块类型(asset module type)，通过添加 4 种新的模块类型，来替换所有这些 loader：
+>
+> - `asset/resource` 发送一个单独的文件并导出 URL。之前通过使用 `file-loader` 实现。
+> - `asset/inline` 导出一个资源的 data URI。之前通过使用 `url-loader` 实现。
+> - `asset/source` 导出资源的源代码。之前通过使用 `raw-loader` 实现。
+> - `asset` 在导出一个 data URI 和发送一个单独的文件之间自动选择。之前通过使用 `url-loader`，并且配置资源体积限制实现。
+>
+> 👆来自webpack官方文档
+
+asset是webpack5中自带的，不需要额外安装。
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	type: '[ asset/resource`  | asset/inline | asset/soutce | asset ]'
+}
+```
+
+当然asset也可以配置输出的文件名和位置
+
+可以在`webpack.config.js`的配置对象中的`output`中，添加`assetModuleFilename`，文件名的配置方式同之前的`file-loader`和`url-loader`类似，只是需要注意，在asset中`[ext]`已经包含了点号`.`。
+
+```js
+module.exports = {
+    output: {
+		filename: 'main.js',
+		path: path.resolve(__dirname, 'dist'),
+		assetModuleFilename: 'img/[name].[hash:8][ext]'
+	},
+}
+```
+
+或者我们可以在module.rules列表中定位到图片解析那块，然后添加generator属性，在generator属性中配置filename。
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	type: 'asset/resource',
+	generator: {
+		filename: 'img/[name].[hash:8][ext]',
+	}
+}
+```
+
+上面都展示的是`asset/resource`，类似于`file-loader`，会将图片文件打包输出，如果要实现`url-loader`那样通过限制大小在打包输出文件和解析为uri中自动选择，可以直接使用`asset`然后添加一个`parser`配置限制大小：
+
+```js
+{
+	test: /\.(jpe?g|png|gif|svg)$/,
+	type: 'asset',
+	generator: {
+		filename: 'img/[name].[hash:8][ext]',
+	},
+	parser: {
+		dataUrlCondition: {
+			maxSize: 100 * 1024
+		}
+	}
+}
+```
+
