@@ -631,3 +631,146 @@ module.exports = {
 }
 ```
 
+`asset/resource`也可以用于解析font资源。配置方式类似：
+
+```js
+{
+	test: /\.(ttf|woff2?)$/,
+	type: 'asset/resource',
+	generator: {
+		filename: 'font/[name].[hash:8][ext]'
+	}
+}
+```
+
+## 12、webpack插件简介
+
+> `plugins` 选项用于以各种方式自定义 webpack 构建过程。webpack 附带了各种内置插件，可以通过 `webpack.[plugin-name]` 访问这些插件。请查看插件页面获取插件列表和对应文档，但请注意这只是其中一部分，社区中还有许多插件。
+>
+> 👆来自webpack官网文档
+
+## 13、clean-webpack-plugin
+
+每次通过webpack进行打包，都需要将之前输出的文件夹删除，非常麻烦，就可以使用`clean-webpack-plugin`来实现自动删除之前的打包文件。
+
+安装`clean-webpack-plugin`：
+
+```shell
+npm install clean-webpack-plugin -d
+```
+
+在`webpack.config.js`导出的配置对象的`plugins`属性中配置`clean-webpack-plugin`：
+
+```js
+const path = require('path')
+const {CleanWebpackPlugin} = require('clean-webpack-plugin')
+
+module.exports = {
+    plugins: [
+        new CleanWebpackPlugin()
+    ]
+}
+```
+
+
+
+## 14、html-webpack-plugin
+
+之前的使用中都是自己创建html文件，导入webpack打包的main.js。
+
+通过`html-webpack-plugin`插件就可以实现根据配置的ejs模板自动打包输出一个`index.html`。
+
+安装`html-webpack-plugin`：
+
+```shell
+npm install html-webpack-plugin -d
+```
+
+在`webpack.config.js`中配置`html-webpack-plugin`：
+
+```js
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+module.exports = {
+    plugins: [
+        new HtmlWebpackPlugin()
+    ]
+}
+```
+
+上面的状态下打包会默认生成该插件内部指定模板的html：
+
+```html
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Webpack App</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script defer="defer" src="main.js"></script>
+</head>
+
+<body></body>
+
+</html>
+
+```
+
+当然我们可以进行一些配置，实现指定的输出模板和输出内容：
+
+在项目中创建public目录，在public目录中存放的就是一些静态资源。可以在public目录下创建一个index.html作为模板，使用ejs模板语法来实现内容的展示。
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+    <title>
+        <%= htmlWebpackPlugin.options.title %>
+    </title>
+</head>
+
+<body>
+    <div id="app">learning-webpack</div>
+</body>
+
+</html>
+```
+
+plugin中需要进行配置：
+
+```js
+new HtmlWebpackPlugin({
+	title: 'learning-webpack',
+	template: './public/index.html'
+}),
+```
+
+注意前面的模板html中有用到`<%= BASE_URL %>`
+
+这个常量的传递需要用到webpack中的`DefinePlugin`：
+
+```js
+const path = require('path')
+const {DefinePlugin} = require('webpack')
+
+module.exports = {
+    plugins: [
+        new DefinePlugin({
+            BASE_URL: "'./'"
+            // 这里传递过去的是引号内的值，而不是字符串，所以我们需要自己加上一层引号作为字符串
+        })
+    ]
+}
+```
+
+
+
+## 15、babel
+
+babel用来实现编译解析js实现向下版本兼容。
+
