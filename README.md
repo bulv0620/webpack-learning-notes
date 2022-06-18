@@ -216,6 +216,8 @@ rules: [
 
 目标浏览器配置
 
+[Can I use... Support tables for HTML5, CSS3, etc](https://caniuse.com/)
+
 webpack很大的一个作用就是浏览器的适配打包，例如将es6编译为es5以实现不同浏览器的适配。而browserslistrc配置文件就是配置一些浏览器适配条件，在进行适配解析的时候，就会根据这些适配条件来获取到需要适配的目标浏览器列表，从而适配解析的loader插件可以因地制宜的进行解析适配。
 
 1、在package.json中配置
@@ -355,6 +357,12 @@ module.exports = {
 在这样的配置中发现，`options`中添加`postcssOptions`，再添加`plugins`，`plugins`数组中再添加插件的名称或`require([插件名])`。这样会导致`webpack.config.js`非常的臃肿，所以可以将postcss的配置独立开来：
 
 在项目中创建`postcss.config.js` 
+
+```js
+module.exports =  {
+    plugins: ['postcss-preset-env'],
+}
+```
 
 然后在webpack.config.js中的配置就只需要加载器的名字：
 
@@ -772,5 +780,466 @@ module.exports = {
 
 ## 15、babel
 
-babel用来实现编译解析js实现向下版本兼容。
+babel用来实现编译解析js实现向下版本兼容。例如箭头函数、`const`、`let`之类的es6+语法并不是所有浏览器都适配的，通过babel的转译就可以实现开发使用新特性不影响浏览器的适配。
+
+安装babel，如果需要能在命令行中执行`npx babel`需要安装`@babel/core`和`@babel/cli`：
+
+```shell
+npm install @babel/core @babel/cli -d
+```
+
+使用babel，在项目中创建一个需要转译的js程序：
+
+```js
+const foo = () => {
+    console.log('foo')
+};
+
+const baz = 'baz';
+```
+
+该段程序中使用了es6的块级作用域语法以及箭头函数。
+
+在命令行终端中使用`npx babel [目标文件位置] --out-dir [输出位置]`
+
+执行完成后，发现并没有任何的转译变化，依然是块作用域语法以及箭头函数。因为babel跟postcss一样，如果需要对代码进行转译，还需要相应的插件才能够实现。例如：
+
+- `plugin-transform-arrow-functions`：转译箭头函数的插件
+- `plugin-transform-block-scoping`：转译块作用域语法的插件
+
+安装插件：
+
+```shell
+npm install @babel/plugin-transform-arrow-functions -d
+npm install @babel/plugin-transform-block-scoping -d
+```
+
+使用插件：
+
+```shell
+npx babel src --out-dir build --plugins=@babel/plugin-transform-arrow-function,@babel/plugin-transform-block-scoping
+```
+
+使用插件后输出的js代码已经进行了相应的转译：
+
+```js
+var foo = function () {
+  console.log('foo');
+};
+
+var baz = 'baz';
+```
+
+当然每一种转译操作都需要添加相应的插件，这个过程过于繁琐，所以类似于postcss，babel也有一种预设的编译环境。
+
+安装预设：
+
+```shell
+npm install @babel/preset-env -d
+```
+
+使用预设：
+
+```shell
+npx babel src --out-dir build --presets=@babel/preset-env
+```
+
+使用预设环境编译输出的js文件：
+
+```js
+"use strict";
+
+var foo = function foo() {
+  console.log('foo');
+};
+
+var baz = 'baz';
+```
+
+
+
+## 16、babel-loader
+
+`babel-loader`就是webpack中利用babel加载解析js文件的加载器。
+
+安装`babel-loader`：
+
+```shell
+npm install babel-loader -d
+```
+
+在`webpack.config.js`中配置`babel-loader`：
+
+```js
+{
+	test: /\.js$/,
+	use: ['babel-loader'],
+}
+```
+
+当然直接这样配置后打包是没有效果的，我们需要配置解析的插件：
+
+```js
+{
+	test: /\.js$/,
+	use: [
+		{
+			loader: 'babel-loader',
+			options: {
+				plugins: [
+					'@babel/plugin-transform-arrow-functions',
+					'@babel/plugin-transform-block-scoping'
+				]
+			}
+		}
+	],
+}
+```
+
+或者也可以直接配置解析预设：
+
+```js
+{
+	test: /\.js$/,
+	use: [
+		{
+			loader: 'babel-loader',
+			options: {
+				presets: ['@babel/preset-env'],
+			}
+		}
+	],
+}
+```
+
+直接在`webpack.config.js`中配置如果比较繁琐，还可以单独配置一个`babel.config.js`，在项目中创建一个`babel.config.js`：
+
+```js
+module.exports = {
+	presets: ['@babel/preset-env']
+}
+```
+
+有了`babel.config.js`后，`webpack.config.js`中就可以简化：
+
+```js
+{
+	test: /\.js$/,
+	use: ['babel-loader'],
+}
+```
+
+
+
+## 17、@babel/polyfill
+
+为什么需要`polyfill`？
+
+使用`@babel/preset-env`并不能将所有语法都进行适配转译，例如es6+中的`Promise`、`WeakMap`之类的，而polyfill就是将这些不能转译并且会出现适配问题的语法，进行一个定义，使其能够正常的运行。例如将Promise实现一下。
+
+在webpack5之前，默认会将`polyfill`内容全部打包进来，但是这就导致了打包体积扩大，速度变慢。webpack5为了加快打包速度，减小打包体积，这些内容需要我们按需配置。
+
+在以往的babel版本中，我们可以直接使用`@babel/polyfill`，但是在babel7以后，官方文档中提示直接使用：`core-js`
+
+> 🚨 As of Babel 7.4.0, this package has been deprecated in favor of directly including `core-js/stable` (to polyfill ECMAScript features):
+>
+> ```js
+> import "core-js/stable";
+> ```
+>
+> If you are compiling generators or async function to ES5, and you are using a version of `@babel/core` or `@babel/plugin-transform-regenerator` older than `7.18.0`, you must also load the [`regenerator runtime`](https://github.com/facebook/regenerator/tree/master/packages/regenerator-runtime) package. It is automatically loaded when using `@babel/preset-env`'s `useBuiltIns: "usage"` option or `@babel/plugin-transform-runtime`.
+
+通过使用`core-js`和`regenerator-runtime`，来实现`polyfill`填充功能。如果我们已经使用了@babel/preset-env并且设置`useBuiltIns: "usage"`后，会自动加载`regenerator-runtime`，不需要手动配置，或者我们可以使用`@babel/plugin-transform-runtime`。
+
+安装`core-js/stable`：
+
+````shell
+npm install core-js -d
+````
+
+`useBuiltInt`默认值为`false`，即不对当前js做`polyfill`处理。可以配置为`'usage'`或者`'entry'`：
+
+- `usage`：依据用户源代码中使用到的新语法进行兼容填充。
+- `entry`：依据browserlistrc获取的需要配置的浏览器列表，来进行兼容填充。
+
+> 在一般情况下，`usage`会更节省空间，因为只会对我们代码中使用到的新语法进行兼容，而`entry`则会将适配浏览器需要的所有兼容内容都填充。但是如果需要兼容的浏览器适配比较好，或者说目标浏览器比较新，只有很少部分内容需要兼容，那么`entry`是一个更好的选择。
+
+`usage`方式配置：（在babel.config.js中）
+
+```js
+module.exports = {
+    presets: [
+        '@babel/preset-env',
+        {
+            useBuiltIns: 'usage',
+            corejs: 3, 
+            // 注意这里默认的corejs版本一般是2
+            // 如果使用其他版本需要自己手动指定。
+        }
+    ]
+}
+```
+
+`entry`方式配置：
+
+```js
+module.exports = {
+    presets: [
+        '@babel/preset-env',
+        {
+            useBuiltIns: 'entry',
+            corejs: 3, 
+            // 注意这里默认的corejs版本一般是2
+            // 如果使用其他版本需要自己手动指定。
+        }
+    ]
+}
+```
+
+配置的`entry`模式需要在js文件中，手动`import 'core-js'`
+
+
+
+## 18、copy-webpack-plugin
+
+在项目public目录下的内容是不希望被webpack打包，而直接复制到输出目录下的，那么通过`copy-webpack-plugin`插件就可以实现目标的复制。
+
+安装`copy-webpack-plugin`：
+
+```shell
+npm install copy-webpack-plugin -d
+```
+
+在`webpack.config.js`中配置插件：
+
+```js
+{
+	plugins: [
+		new CopyWebpackPlugin({
+            patterns: [
+                {
+                    from: './public',
+                    // 由于我们使用html-webpack-plugin插件会在输出目录中生成index.html文件
+                    // 而copy插件会将public又拷贝过去，index.html文件重复了
+                    // 所以需要配置忽略index.html文件。
+                    globOptions: {
+                        ignore: '**/index.html'
+                    }
+                }
+            ]
+        })
+	]
+}
+```
+
+
+
+## 19、webpack-dev-server
+
+为了开发的便利，希望能够在内容修改后，webpack重新打包，并且在页面上刷新内容。
+
+可以使用webpack的观察模式：`webpack --watch`，该打包模式打包完成后会监听项目文件，当发生变化保存后，就会重新打包。结合vscode中的live server插件就可以实现页面自动更新的简单开发服务器，快速开发应用程序。
+
+当然这个方法存在很多的问题：
+
+- 修改保存后所有源代码都会重新编译
+- 每次编译成功后都需要重新输出打包文件，进行文件的读写
+- live server本身是vsc的插件，而不是webpack生态的插件
+- 不能实现局部刷新，live server监听到内容变化后只会全局刷新
+
+所以可以利用webpack的webpack-dev-server插件来实现开发服务器。
+
+安装`webpack-dev-server`：
+
+```shell
+npm install webpack-dev-server --save-dev
+```
+
+在webpack.config.js中配置：
+
+```js
+devServer: {
+	static: {
+		directory: path.join(__dirname, 'public'),
+	},
+	compress: true,
+	port: 9000,
+},
+// 利用 gzips 压缩 public/ 目录当中的所有内容并提供一个本地服务 端口号9000
+```
+
+配置一个运行脚本：`"serve": "webpack serve --open"`
+
+使用`npm run serve`即可。
+
+
+
+## 20、webpack-dev-middleware
+
+> `webpack-dev-middleware` is a wrapper that will emit files processed by webpack to a server. This is used in `webpack-dev-server` internally, however it's available as a separate package to allow more custom setups if desired. We'll take a look at an example that combines `webpack-dev-middleware` with an express server.
+>
+> 👆来自webpack官方文档[Development | webpack](https://webpack.js.org/guides/development/)
+
+
+
+## 21、HMR简单使用
+
+当更新完内容保存后，可以发现页面是全局刷新的。
+
+而通过**模块热替换**（Hot Module Replacement），只需要局部刷新页面上发生变化的模块，同时可以保留当前的页面状态，比如复选框的选中状态、输入框的输入等不需要重新去操作。
+
+HMR可以节省我们的开发时间、提升开发的体验。
+
+使用HMR我们只需要在`devServer`中配置`hot: true`
+
+然后在index.js文件中对需要热替换的模块进行一些操作：
+
+```js
+if(module.hot){
+    module.hot.accept('./js/print.js', () => {
+        console.log('print.js update')
+    })
+}
+```
+
+
+
+## 22、HMR实现原理（待补充）
+
+
+
+## 23、vue组件热替换
+
+vue组件通过`vue-loader`插件可以非常方便的实现组件热替换。
+
+安装`vue`、`vue-lodaer`：
+
+```shell
+npm install vue vue-loader --save
+```
+
+在`webpack.config.js`中配置：
+
+```js
+const { VueLoaderPlugin } = require('vue-loader')
+
+module.exports = {
+	module: {
+		rules: [
+			{
+				test: /\.vue$/,
+				use: ['vue-loader']
+			}
+		]
+	},
+	plugins: [new VueLoaderPlugin()]
+}
+```
+
+项目src目录中创建vue入口文件`App.vue`和`index.js`，创建一个`Title.vue`组件做为热替换测试。
+
+`Title.vue`：
+
+```vue
+<template>
+    <div>
+        <h1>{{ title }}</h1>
+    </div>
+</template>
+
+<script setup>
+const title = 'hello vue!'
+</script>
+```
+
+`App.vue`：
+
+```vue
+<template>
+<div>
+    <TitleVue></TitleVue>
+</div>
+</template>
+
+<script setup>
+import TitleVue from './components/Title.vue'
+</script>
+```
+
+`index.js`：
+
+```js
+import { createApp }  from 'vue'
+import App from './App.vue'
+
+const app = createApp(App).mount('#app')
+```
+
+运行后，修改`Title`组件中的内容，即可观察到。
+
+
+
+## 24、proxy代理设置
+
+在开发阶段，前后端数据的请求可能会出现跨域的问题，所以需要进行一个转发代理。
+
+我们在之前已经使用`devServer`创建了一个开发服务器，可以通过设置`proxy`属性，利用该服务器进行转发，解决跨域的问题。
+
+```js
+devServer: {
+	proxy: {
+		'/api': {
+			target: 'https://api.github.com'
+		}
+	}
+}
+```
+
+如上配置后，我们使用axios请求`/api/user`，就会转发到`https://api.github.com/api/user`。但是这个api并不需要，所以可以重写该字段：
+
+```js
+devServer: {
+	proxy: {
+		'/api': {
+			target: 'https://api.github.com',
+			pathRewrite: {'^/api': ''},
+             // 又因为该api的限制问题，所以需要把我们的请求的host伪装一下👇
+             changeOrigin: true
+		}
+	}
+}
+```
+
+
+
+## 25、resolve属性
+
+webpack的`resolve`属性用来配置解析模块的规则。
+
+例如vue模块，在之前必须要将`.vue`后缀名加上才能够正常的通过`vue-loader`对其进行解析，如果不加上后缀名，就无法匹配为vue解析。
+
+利用`resolve`属性的`extensions`属性可以配置后缀名的解析：
+
+```js
+module.exports = {
+	resolve: {
+    	extensions: ['.js', '.json', '.ts', '.vue']
+	},
+};
+```
+
+同时也可以利用`resolve`属性的`alias`属性配置其他的解析规则，例如`@`符号表示`src`目录：
+
+```js
+const path = require('path')
+
+module.exports = {
+	resolve: {
+    	extensions: ['.js', '.json', '.ts', '.vue'],
+    	alias: {
+    		'@': path.resolve(__dirname, 'src')
+    	}
+	},
+};
+```
 
