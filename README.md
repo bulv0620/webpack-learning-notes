@@ -1,4 +1,4 @@
-# webpack5
+# webpack5入门学习
 
 ## 1、webpack初体验
 
@@ -1243,3 +1243,500 @@ module.exports = {
 };
 ```
 
+
+
+## 26、source-map
+
+source-map就是一个对于打包前后代码对应位置的映射，可以在调试的时候定位到源代码中的信息。
+
+在webpack.config.js中的devtool属性用于选择一种 source map风格来增强调试过程。不同的值会明显影响到构建(build)和重新构建(rebuild)的速度。
+
+> | devtool                                    | performance                              | production | quality        | comment                                                      |
+> | :----------------------------------------- | :--------------------------------------- | :--------- | :------------- | :----------------------------------------------------------- |
+> | (none)                                     | **build**: fastest  **rebuild**: fastest | yes        | bundle         | Recommended choice for production builds with maximum performance. |
+> | **`eval`**                                 | **build**: fast  **rebuild**: fastest    | no         | generated      | Recommended choice for development builds with maximum performance. |
+> | `eval-cheap-source-map`                    | **build**: ok  **rebuild**: fast         | no         | transformed    | Tradeoff choice for development builds.                      |
+> | `eval-cheap-module-source-map`             | **build**: slow  **rebuild**: fast       | no         | original lines | Tradeoff choice for development builds.                      |
+> | **`eval-source-map`**                      | **build**: slowest  **rebuild**: ok      | no         | original       | Recommended choice for development builds with high quality SourceMaps. |
+> | `cheap-source-map`                         | **build**: ok  **rebuild**: slow         | no         | transformed    |                                                              |
+> | `cheap-module-source-map`                  | **build**: slow  **rebuild**: slow       | no         | original lines |                                                              |
+> | **`source-map`**                           | **build**: slowest  **rebuild**: slowest | yes        | original       | Recommended choice for production builds with high quality SourceMaps. |
+> | `inline-cheap-source-map`                  | **build**: ok  **rebuild**: slow         | no         | transformed    |                                                              |
+> | `inline-cheap-module-source-map`           | **build**: slow  **rebuild**: slow       | no         | original lines |                                                              |
+> | `inline-source-map`                        | **build**: slowest  **rebuild**: slowest | no         | original       | Possible choice when publishing a single file                |
+> | `eval-nosources-cheap-source-map`          | **build**: ok  **rebuild**: fast         | no         | transformed    | source code not included                                     |
+> | `eval-nosources-cheap-module-source-map`   | **build**: slow  **rebuild**: fast       | no         | original lines | source code not included                                     |
+> | `eval-nosources-source-map`                | **build**: slowest  **rebuild**: ok      | no         | original       | source code not included                                     |
+> | `inline-nosources-cheap-source-map`        | **build**: ok  **rebuild**: slow         | no         | transformed    | source code not included                                     |
+> | `inline-nosources-cheap-module-source-map` | **build**: slow  **rebuild**: slow       | no         | original lines | source code not included                                     |
+> | `inline-nosources-source-map`              | **build**: slowest  **rebuild**: slowest | no         | original       | source code not included                                     |
+> | `nosources-cheap-source-map`               | **build**: ok  **rebuild**: slow         | no         | transformed    | source code not included                                     |
+> | `nosources-cheap-module-source-map`        | **build**: slow  **rebuild**: slow       | no         | original lines | source code not included                                     |
+> | `nosources-source-map`                     | **build**: slowest  **rebuild**: slowest | yes        | original       | source code not included                                     |
+> | `hidden-nosources-cheap-source-map`        | **build**: ok  **rebuild**: slow         | no         | transformed    | no reference, source code not included                       |
+> | `hidden-nosources-cheap-module-source-map` | **build**: slow  **rebuild**: slow       | no         | original lines | no reference, source code not included                       |
+> | `hidden-nosources-source-map`              | **build**: slowest  **rebuild**: slowest | yes        | original       | no reference, source code not included                       |
+> | `hidden-cheap-source-map`                  | **build**: ok  **rebuild**: slow         | no         | transformed    | no reference                                                 |
+> | `hidden-cheap-module-source-map`           | **build**: slow  **rebuild**: slow       | no         | original lines | no reference                                                 |
+> | `hidden-source-map`                        | **build**: slowest  **rebuild**: slowest | yes        | original       | no reference. Possible choice when using SourceMap only for error reporting purposes. |
+>
+> 验证 devtool 名称时， 我们期望使用某种模式， 注意不要混淆 devtool 字符串的顺序， 模式是： `[inline-|hidden-|eval-][nosources-][cheap-[module-]]source-map`.
+>
+> 👆来自webpack官方文档
+
+
+
+## 27、typescript解析
+
+### 27.1、使用ts-loader
+
+安装ts-loader：
+
+```shell
+npm install ts-loader -D
+```
+
+配置ts-loader：
+
+```js
+module.exports = {
+	module: {
+        rules: [
+            {
+                test: /\.ts&/,
+                use: ['ts-loader']
+            }
+        ]
+    }
+}
+```
+
+配置完成后，编译打包即可。
+
+
+
+### 27.2、使用babel-loader
+
+babel-loader基本的安装以及一些配置在之前的实践中已经熟悉了。这里只记录配置与ts编译相关内容：
+
+安装@babel/preset-typescript：
+
+```shell
+npm install @babel/preset-typescript -D
+```
+
+在webpack.config.js中：
+
+```js
+module.exports = {
+	module: {
+        rules: [
+            {
+                test: /\.ts&/,
+                use: ['ts-loader']
+            }
+        ]
+    }
+}
+```
+
+在babel.config.js中：
+
+```js
+module.exports = {
+	presets: ["@babel/preset-typescript"]
+}
+```
+
+
+
+### 27.3、最佳实践
+
+因为使用ts-loader不能够利用pollyfill对某些新语法进行解析填充，而使用babel-loader不能够在编译阶段发现代码中的错误。
+
+所以我们可以利用typescript插件，在使用babel-loader进行打包前，先使用`tsc`对项目文件进行一次语法检查，然后再进行打包。
+
+配置一个编译脚本：
+
+```json
+"scripts": {
+    "build": "npm run check && webpack",
+    "check": "tsc --noEmit"
+},
+```
+
+
+
+## 28、区分打包环境
+
+生存环境和开发环境的配置会又一定程度的区别，所以我们需要将配置文件拆分开来，在特定的需求下组合特定的环境。
+
+根据生产环境和开发环境各自的需求，配置webapck.prod.js、webpack.dev.js。在webpack.common.js中配置公共内容，然后根据传入的env来判断需要组合哪个配置文件。
+
+组合配置文件使用webpack-merge：
+
+安装webpack-merge：
+
+```shell
+npm install webpack-merge -D
+```
+
+导入webpack-merge：
+
+```js
+const { merge } = require('webpack-merge')
+// merge(a, b)
+```
+
+`webpack.common.js`：
+
+```js
+const resolvePath = require('./paths');
+const {merge} = require('webpack-merge');
+const prodConfig = require('./webpack.prod.js');
+const devConfig = require('./webpack.dev.js');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const {DefinePlugin} = require('webpack');
+
+const commonConfig = {
+    entry: './src/index.ts',
+    devServer: {
+        hot: true,
+    },
+    output: {
+        path: resolvePath('./dist'),
+        filename: 'main.js'
+    },
+    module: {
+        rules: [
+            {
+                test: /\.js$/,
+                exclude: /node_modules/,
+                use: ['babel-loader']
+            },
+            {
+                test: /\.ts$/,
+                exclude: /node_modules/,
+                use: ['babel-loader']
+            },
+            {
+                test: /\.css$/,
+                use: ['style-loader', 'css-loader']
+            }
+        ]
+    },
+    plugins: [
+        new HtmlWebpackPlugin({
+            title: 'Learning webpack',
+            template: './public/index.html',
+        }),
+        new DefinePlugin({
+            BASE_URL: "'./'"
+        })
+    ]
+}
+
+module.exports = (env) => {
+    const isProduction = env.production;
+    const config = isProduction ? prodConfig : devConfig;
+    return merge(commonConfig, config);
+}
+```
+
+`webpack.dev.js`：
+
+```js
+module.exports = {
+    mode: 'development',
+    devtool: 'source-map',
+    devServer: {
+        hot: true,
+    },
+}
+```
+
+`webpack.prod.js`：
+
+```js
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+
+module.exports = {
+    mode: 'production',
+    plugins: [
+        new CleanWebpackPlugin(),
+    ]
+}
+```
+
+`paths.js`：
+
+```js
+const path = require('path')
+
+const appDir = process.cwd()
+
+const resolvePath = (relativePath) => {
+    return path.resolve(appDir, relativePath)
+}
+
+module.exports = resolvePath
+```
+
+配置的脚本：
+
+```JSON
+"build2": "webpack --config ./config/webpack.common.js --env production",
+"serve2": "webpack serve --config ./config/webpack.common.js --env development --open"
+```
+
+
+
+如果其他的加载器的配置文件需要进行区分打包环境，例如babel的presets和plugins在生产环境和开发环境中有各自的需求。
+
+可以使用`process.env.NODE_ENV`来获取当前的webpack模式，根据获得的模式，来配置不同的环境：
+
+在`webpack.common.js`中：
+
+```js
+process.env.NODE_ENV = isProduction ? 'production' : 'development';
+```
+
+`babel.config.js`：
+
+```js
+const presets = [
+    [
+        '@babel/preset-env',
+        {
+            useBuiltIns: 'usage',
+            corejs: 3,
+        }
+    ],
+    '@babel/preset-typescript',
+]
+
+const plugins = []
+
+if (process.env.NODE_ENV === 'production') {
+    plugins.push('@babel/plugin-transform-runtime')
+}
+
+module.exports = {
+    presets,
+    plugins,
+}
+```
+
+
+
+## 29、代码拆分打包
+
+之前的实践中，所有项目打包完后都发射到一个main.js文件中，这样会导致main.js非常的大，首屏加载时会很慢，很多不需要用到的内容都被包含在main.js中。所以需要可以对代码进行拆分打包。
+
+在webpack配置的entry属性可以配置多个入口，通过这种方式可以手动的配置代码的拆分打包。
+
+```js
+module.exports = {
+	entry: {
+        // 方法1
+		index: './src/index.js',
+		print: './src/print.js',
+        // 方法2 需要对导入的模块进行拆分
+        index: {
+            import: './src/index.js',
+            dependOn: 'lodash'
+        },
+        print: {
+            import: './src/print.js',
+            dependOn: 'lodash'
+        },
+        lodash: 'lodash',
+        // 方法3 需要多个模块时
+        index: {
+            import: './src/index.js',
+            dependOn: 'shared'
+        },
+        print: {
+            import: './src/print.js',
+            dependOn: 'shared'
+        },
+        shared: ['lodash', 'jquery']
+	},
+	output: {
+		filename: 'js/[name].build.js',
+		path: path.resolve(__dirname, 'dist'),
+	}
+}
+```
+
+
+
+## 30、splitchunks配置
+
+上篇中已经介绍了代码拆分打包的方式，而webpack也为我们提供了对于异步/同步导入的文件的自动拆分打包方式：splitchunk
+
+下面这个配置对象代表 `SplitChunksPlugin` 的默认行为。
+
+在webpack.config.js中配置：
+
+```js
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      chunks: 'async',
+      minSize: 20000,
+      minRemainingSize: 0,
+      minChunks: 1,
+      maxAsyncRequests: 30,
+      maxInitialRequests: 30,
+      enforceSizeThreshold: 50000,
+      cacheGroups: {
+        defaultVendors: {
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          reuseExistingChunk: true,
+        },
+        default: {
+          minChunks: 2,
+          priority: -20,
+          reuseExistingChunk: true,
+        },
+      },
+    },
+  },
+};
+```
+
+配置样例：
+
+```js
+optimization: {
+        splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+                syVandors: {
+                    test: /[\\/]node_modules[\\/]/,
+                    filename: 'js/[contenthash].vendor.js',
+                    priority: -10,
+                },
+                default: {
+                    minChunks: 2,
+                    filename: 'js/[contenthash].js',
+                    priority: -20,
+                }
+            }
+        }
+    },
+    output: {
+        path: resolvePath('./dist'),
+        filename: 'js/[contenthash].bundle.js'
+    },
+```
+
+
+
+## 31、import动态导入
+
+通过import函数异步导入的内容，会被自动的拆分打包，可以通过设置output的chunkFilename来对输出文件名进行配置：
+
+```js
+output: {
+    path: resolvePath('./dist'),
+    filename: 'js/[contenthash].bundle.js',
+    chunkFilename: 'js/[contenthash].chunk.js',
+},
+```
+
+还可以通过魔法注释来实现配置name：
+
+index.js：
+
+```js
+import(/*webpackChunkName: "title"*/'./components/title');
+```
+
+webpack.common.js：
+
+```js
+output: {
+    path: resolvePath('./dist'),
+    filename: 'js/[contenthash].bundle.js',
+    chunkFilename: 'js/[name].chunk.js',
+},
+```
+
+
+
+## 32、runtimeChunk优化配置
+
+> 设置runtimeChunk是将包含`chunks 映射关系`的 list单独从 app.js里提取出来，因为每一个 chunk 的 id 基本都是基于内容 hash 出来的，所以每次改动都会影响它，如果不将它提取出来的话，等于app.js每次都会改变。缓存就失效了。设置runtimeChunk之后，webpack就会生成一个个runtime~xxx.js的文件。
+>  然后每次更改所谓的运行时代码文件时，打包构建时app.js的hash值是不会改变的。如果每次项目更新都会更改app.js的hash值，那么用户端浏览器每次都需要重新加载变化的app.js，如果项目大切优化分包没做好的话会导致第一次加载很耗时，导致用户体验变差。现在设置了runtimeChunk，就解决了这样的问题。所以`这样做的目的是避免文件的频繁变更导致浏览器缓存失效，所以其是更好的利用缓存。提升用户体验。`
+>
+> 查看下runtime~xxx.js文件内容:
+>
+> ```jsx
+> function a(e){return i.p+"js/"+({about:"about"}[e]||e)+"."+{about:"3cc6fa76"}[e]+".js"}f
+> ```
+>
+> 发现文件很小，且就是加载chunk的依赖关系的文件。虽然每次构建后app的hash没有改变，但是runtime~xxx.js会变啊。每次重新构建上线后，浏览器每次都需要重新请求它，它的 http 耗时远大于它的执行时间了，所以建议不要将它单独拆包，而是将它内联到我们的 index.html 之中。这边我们使用[script-ext-html-webpack-plugin](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fnumical%2Fscript-ext-html-webpack-plugin)来实现。（也可使用html-webpack-inline-source-plugin，其不会删除runtime文件。）
+>
+> ```jsx
+> // vue.config.js
+> const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin')
+> module.exports = {
+>   productionSourceMap: false,
+>   configureWebpack: {
+>     optimization: {
+>       runtimeChunk: true
+>     },
+>     plugins: [
+>       new ScriptExtHtmlWebpackPlugin({
+>         inline: /runtime~.+\.js$/  //正则匹配runtime文件名
+>       })
+>     ]
+>   },
+>   chainWebpack: config => {
+>     config.plugin('preload')
+>       .tap(args => {
+>         args[0].fileBlacklist.push(/runtime~.+\.js$/) //正则匹配runtime文件名，去除该文件的preload
+>         return args
+>       })
+>   }
+> }
+> ```
+>
+> 重新打包，查看index.html文件
+>
+> ```html
+> <!DOCTYPE html>
+> <html lang=en>
+> 
+> <head>
+>     <meta charset=utf-8>
+>     <meta http-equiv=X-UA-Compatible content="IE=edge">
+>     <meta name=viewport content="width=device-width,initial-scale=1">
+>     <link rel=icon href=/favicon.ico>
+>     <title>runtime-chunk</title>
+>     <link href=/js/about.cccc71df.js rel=prefetch>
+>     <link href=/css/app.b087a504.css rel=preload as=style>
+>     <link href=/js/app.9f1ba6f7.js rel=preload as=script>
+>     <link href=/css/app.b087a504.css rel=stylesheet>
+> </head>
+> 
+> <body><noscript><strong>We're sorry but runtime-chunk doesn't work properly without JavaScript enabled. Please enable it
+>             to continue.</strong></noscript>
+>     <div id=app></div>
+>     <script>(function (e) { function r(r) { for (var n, a, i = r[0], c = r[1], l = r[2], f = 0, s = []; f < i.length; f++)a = i[f], Object.prototype.hasOwnProperty.call(o, a) && o[a] && s.push(o[a][0]), o[a] = 0; for (n in c) Object.prototype.hasOwnProperty.call(c, n) && (e[n] = c[n]); p && p(r); while (s.length) s.shift()(); return u.push.apply(u, l || []), t() } function t() { for (var e, r = 0; r < u.length; r++) { for (var t = u[r], n = !0, a = 1; a < t.length; a++) { var c = t[a]; 0 !== o[c] && (n = !1) } n && (u.splice(r--, 1), e = i(i.s = t[0])) } return e } var n = {}, o = { "runtime~app": 0 }, u = []; function a(e) { return i.p + "js/" + ({ about: "about" }[e] || e) + "." + { about: "cccc71df" }[e] + ".js" } function i(r) { if (n[r]) return n[r].exports; var t = n[r] = { i: r, l: !1, exports: {} }; return e[r].call(t.exports, t, t.exports, i), t.l = !0, t.exports } i.e = function (e) { var r = [], t = o[e]; if (0 !== t) if (t) r.push(t[2]); else { var n = new Promise((function (r, n) { t = o[e] = [r, n] })); r.push(t[2] = n); var u, c = document.createElement("script"); c.charset = "utf-8", c.timeout = 120, i.nc && c.setAttribute("nonce", i.nc), c.src = a(e); var l = new Error; u = function (r) { c.onerror = c.onload = null, clearTimeout(f); var t = o[e]; if (0 !== t) { if (t) { var n = r && ("load" === r.type ? "missing" : r.type), u = r && r.target && r.target.src; l.message = "Loading chunk " + e + " failed.\n(" + n + ": " + u + ")", l.name = "ChunkLoadError", l.type = n, l.request = u, t[1](l) } o[e] = void 0 } }; var f = setTimeout((function () { u({ type: "timeout", target: c }) }), 12e4); c.onerror = c.onload = u, document.head.appendChild(c) } return Promise.all(r) }, i.m = e, i.c = n, i.d = function (e, r, t) { i.o(e, r) || Object.defineProperty(e, r, { enumerable: !0, get: t }) }, i.r = function (e) { "undefined" !== typeof Symbol && Symbol.toStringTag && Object.defineProperty(e, Symbol.toStringTag, { value: "Module" }), Object.defineProperty(e, "__esModule", { value: !0 }) }, i.t = function (e, r) { if (1 & r && (e = i(e)), 8 & r) return e; if (4 & r && "object" === typeof e && e && e.__esModule) return e; var t = Object.create(null); if (i.r(t), Object.defineProperty(t, "default", { enumerable: !0, value: e }), 2 & r && "string" != typeof e) for (var n in e) i.d(t, n, function (r) { return e[r] }.bind(null, n)); return t }, i.n = function (e) { var r = e && e.__esModule ? function () { return e["default"] } : function () { return e }; return i.d(r, "a", r), r }, i.o = function (e, r) { return Object.prototype.hasOwnProperty.call(e, r) }, i.p = "/", i.oe = function (e) { throw console.error(e), e }; var c = window["webpackJsonp"] = window["webpackJsonp"] || [], l = c.push.bind(c); c.push = r, c = c.slice(); for (var f = 0; f < c.length; f++)r(c[f]); var p = l; t() })([]);</script>
+>     <script src=/js/chunk-vendors.1e5c55d3.js></script>
+>     <script src=/js/app.9f1ba6f7.js></script>
+> </body>
+> </html>
+> ```
+>
+> index.html中已经没有对runtime~xxx.js的引用了，而是直接将其代码写入到了index.html中，故不会在请求文件，减少http请求。
+>
+> 作者：叶小七的真命天子
+> 链接：https://www.jianshu.com/p/714ce38b9fdc
+> 来源：简书
+> 著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
